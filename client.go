@@ -44,7 +44,7 @@ func NewClient(instanceName string, stdin io.Reader, stdout, stderr io.Writer) (
 	return &c, nil
 }
 
-func (c *Client) doRequest(args []string) error {
+func (c *Client) DoRequest(args []string) error {
 	ctx := gok.Context{
 		Stdin:  c.stdin,
 		Stdout: c.stdout,
@@ -56,11 +56,11 @@ func (c *Client) doRequest(args []string) error {
 	return err
 }
 
-func (c *Client) update() error {
-	return c.doRequest([]string{"update"})
+func (c *Client) Update() error {
+	return c.DoRequest([]string{"update"})
 }
 
-func (c *Client) createInstance(conf configuration) error {
+func (c *Client) CreateInstance(conf configuration) error {
 	err := os.Mkdir(filepath.Join(c.ParentDir, c.InstanceName), os.ModePerm)
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func (c *Client) createInstance(conf configuration) error {
 	}
 	defer f.Close()
 
-	byt, err := json.Marshal(conf)
+	byt, err := json.MarshalIndent(conf, "", "\t")
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (c *Client) createInstance(conf configuration) error {
 	return nil
 }
 
-func (c *Client) cleanup() error {
+func (c *Client) Cleanup() error {
 	return os.RemoveAll(c.ParentDir)
 }
 
@@ -131,7 +131,7 @@ func main() {
 		panic(err)
 	}
 
-	err = c.createInstance(res)
+	err = c.CreateInstance(res)
 	if err != nil {
 		panic(err)
 	}
@@ -141,7 +141,7 @@ func main() {
 	timer := time.NewTimer(10 * time.Second)
 	<-timer.C
 
-	err = c.cleanup()
+	err = c.Cleanup()
 	if err != nil {
 		panic(err)
 	}
