@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	gok "github.com/gokrazy/tools/gok"
 )
@@ -60,13 +59,13 @@ func (c *Client) Update() error {
 	return c.DoRequest([]string{"update"})
 }
 
-func (c *Client) CreateInstance(conf configuration) error {
+func (c *Client) ApplyConfiguration(conf configuration) error {
 	err := os.Mkdir(filepath.Join(c.ParentDir, c.InstanceName), os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	f, err := os.Create(filepath.Join(c.ParentDir, c.InstanceName, "config.json"))
+	f, err := os.Create(filepath.Join(c.ParentDir, c.InstanceName, conf.getFileName()))
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,20 @@ type update struct {
 	HttpPassword string `json:"HTTPPassword"`
 }
 
-type configuration struct {
+type configuration interface {
+	getFileName() string
+}
+
+type wifiConfiguration struct {
+	SSID string `json:"ssid"`
+	PSK  string `json:"psk"`
+}
+
+func (w wifiConfiguration) getFileName() string {
+	return "wifi.json"
+}
+
+type gokrazyConfiguration struct {
 	Hostname      string                            `json:"Hostname"`
 	Update        update                            `json:"Update"`
 	Packages      []string                          `json:"Packages"`
@@ -98,30 +110,42 @@ type configuration struct {
 	SerialConsole string                            `json:"SerialConsole"`
 }
 
+func (c gokrazyConfiguration) getFileName() string {
+	return "config.json"
+}
+
 func main() {
 	byt := []byte(`
 {
-    "Hostname": "example",
+    "Hostname": "hello",
     "Update": {
         "HTTPPassword": "password1"
     },
     "Packages": [
+        "github.com/gokrazy/fbstatus",
+        "github.com/gokrazy/serial-busybox",
+        "github.com/gokrazy/breakglass",
         "github.com/gokrazy/podman"
     ],
     "PackageConfig": {
+        "github.com/gokrazy/gokrazy/cmd/randomd": {
+            "ExtraFileContents": {
+                "/etc/machine-id": "3f2bf9265bda4286975b6b4ab8c3a477\n"
+            }
+        },
         "github.com/gokrazy/breakglass": {
             "CommandLineFlags": [
                 "-authorized_keys=/etc/breakglass.authorized_keys"
             ],
             "ExtraFilePaths": {
-                "/etc/breakglass.authorized_keys": "/some/path"
+                "/etc/breakglass.authorized_keys": "/home/alistair/gokrazy/hello/breakglass.authorized_keys"
             }
         }
     },
     "SerialConsole": "disabled"
 }
 `)
-	res := configuration{}
+	res := gokrazyConfiguration{}
 	if err := json.Unmarshal(byt, &res); err != nil {
 		panic(err)
 	}
@@ -130,18 +154,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer c.Cleanup()
 
-	err = c.CreateInstance(res)
+	err = c.ApplyConfiguration(res)
 	if err != nil {
 		panic(err)
 	}
 
+	wifi := wifiConfiguration{SSID: "ssid", PSK: "psk"}
+	c.ApplyConfiguration(wifi)
+
 	fmt.Println(c.ParentDir)
 
-	timer := time.NewTimer(10 * time.Second)
-	<-timer.C
-
-	err = c.Cleanup()
+	c.Update()
 	if err != nil {
 		panic(err)
 	}

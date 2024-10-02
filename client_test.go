@@ -1,14 +1,14 @@
 package main
 
 import (
-	"errors"
-	"io"
-	"os"
 	"encoding/json"
-	"path/filepath"
+	"errors"
+	"fmt"
+	"io"
 	"io/fs"
-  "fmt"
-  "testing"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
 func TestNewClient(t *testing.T) {
@@ -20,7 +20,7 @@ func TestNewClient(t *testing.T) {
 	defer c.Cleanup()
 
 	if c.InstanceName != clientName {
-		t.Errorf("Instance name was mangled in creation: wanted %q got %q", clientName, c.InstanceName )
+		t.Errorf("Instance name was mangled in creation: wanted %q got %q", clientName, c.InstanceName)
 	}
 }
 
@@ -32,7 +32,54 @@ func TestUpdate(t *testing.T) {
 	fmt.Println("unimplemented")
 }
 
+func TestWifi(t *testing.T) {
+	clientName := "test"
+	c, err := NewClient(clientName, os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	defer c.Cleanup()
+
+	wifi := wifiConfiguration{
+		SSID: "ssid",
+		PSK:  "psk",
+	}
+	c.ApplyConfiguration(wifi)
+
+	_, err = os.Stat(filepath.Join(c.ParentDir, c.InstanceName, "wifi.json"))
+	if errors.Is(err, fs.ErrNotExist) {
+		t.Errorf(err.Error())
+	}
+}
+
 func TestCreateInstance(t *testing.T) {
+	clientName := "test"
+	c, err := NewClient(clientName, os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	defer c.Cleanup()
+
+	conf := gokrazyConfiguration{
+		Hostname:      "test",
+		Update:        update{HttpPassword: "password1"},
+		Packages:      []string{"github.com/gokrazy/breakglass"},
+		Config:        nil,
+		SerialConsole: "disabled",
+	}
+
+	err = c.ApplyConfiguration(conf)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	_, err = os.Stat(filepath.Join(c.ParentDir, c.InstanceName, "config.json"))
+	if errors.Is(err, fs.ErrNotExist) {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestEndToEnd(t *testing.T) {
 	byt := []byte(`
 {
     "Hostname": "test",
@@ -56,7 +103,7 @@ func TestCreateInstance(t *testing.T) {
 }
 `)
 
-	res := configuration{}
+	res := gokrazyConfiguration{}
 	if err := json.Unmarshal(byt, &res); err != nil {
 		t.Errorf(err.Error())
 	}
@@ -67,7 +114,7 @@ func TestCreateInstance(t *testing.T) {
 	}
 	defer c.Cleanup()
 
-	err = c.CreateInstance(res)
+	err = c.ApplyConfiguration(res)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -92,7 +139,7 @@ func TestCreateInstance(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-	gotConf := configuration{}
+	gotConf := gokrazyConfiguration{}
 	if err = json.Unmarshal(data, &gotConf); err != nil {
 		t.Errorf(err.Error())
 	}
