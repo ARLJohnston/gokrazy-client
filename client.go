@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -163,8 +162,6 @@ func main() {
 
 	wifi := wifiConfiguration{SSID: "ssid", PSK: "psk"}
 	c.ApplyConfiguration(wifi)
-
-	fmt.Println(c.ParentDir)
 
 	c.Update()
 	if err != nil {

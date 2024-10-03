@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -25,7 +26,36 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestDoRequest(t *testing.T) {
-	fmt.Println("unimplemented")
+	hostName := "hello"
+	text := new(strings.Builder)
+	c, err := NewClient(hostName, os.Stdin, text, text)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	defer c.Cleanup()
+
+	conf := gokrazyConfiguration{
+		Hostname:      hostName,
+		Update:        update{HttpPassword: "password1"},
+		Packages:      []string{"github.com/gokrazy/breakglass"},
+		Config:        nil,
+		SerialConsole: "disabled",
+	}
+
+	err = c.ApplyConfiguration(conf)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	err = c.DoRequest([]string{"add", "github.com/gokrazy/wifi"})
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	docString := ""
+	if !strings.Contains(text.String(), docString) {
+		t.Errorf("Expected message to contain %q\n Full message was %q", docString, text.String())
+	}
 }
 
 func TestUpdate(t *testing.T) {
