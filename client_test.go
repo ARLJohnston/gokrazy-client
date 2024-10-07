@@ -1,4 +1,4 @@
-package main
+package gokrazyclient
 
 import (
 	"encoding/json"
