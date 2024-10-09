@@ -34,7 +34,7 @@ func TestDoRequest(t *testing.T) {
 	}
 	defer c.Cleanup()
 
-	conf := gokrazyConfiguration{
+	c.Conf = gokrazyConfiguration{
 		Hostname:      hostName,
 		Update:        update{HttpPassword: "password1"},
 		Packages:      []string{"github.com/gokrazy/breakglass"},
@@ -42,7 +42,7 @@ func TestDoRequest(t *testing.T) {
 		SerialConsole: "disabled",
 	}
 
-	err = c.ApplyConfiguration(conf)
+	err = c.ApplyConfiguration()
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -62,26 +62,6 @@ func TestUpdate(t *testing.T) {
 	fmt.Println("unimplemented")
 }
 
-func TestWifi(t *testing.T) {
-	clientName := "test"
-	c, err := NewClient(clientName, os.Stdin, os.Stdout, os.Stderr)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	defer c.Cleanup()
-
-	wifi := wifiConfiguration{
-		SSID: "ssid",
-		PSK:  "psk",
-	}
-	c.ApplyConfiguration(wifi)
-
-	_, err = os.Stat(filepath.Join(c.ParentDir, c.InstanceName, "wifi.json"))
-	if errors.Is(err, fs.ErrNotExist) {
-		t.Errorf(err.Error())
-	}
-}
-
 func TestCreateInstance(t *testing.T) {
 	clientName := "test"
 	c, err := NewClient(clientName, os.Stdin, os.Stdout, os.Stderr)
@@ -90,7 +70,7 @@ func TestCreateInstance(t *testing.T) {
 	}
 	defer c.Cleanup()
 
-	conf := gokrazyConfiguration{
+	c.Conf = gokrazyConfiguration{
 		Hostname:      "test",
 		Update:        update{HttpPassword: "password1"},
 		Packages:      []string{"github.com/gokrazy/breakglass"},
@@ -98,7 +78,7 @@ func TestCreateInstance(t *testing.T) {
 		SerialConsole: "disabled",
 	}
 
-	err = c.ApplyConfiguration(conf)
+	err = c.ApplyConfiguration()
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -144,7 +124,9 @@ func TestEndToEnd(t *testing.T) {
 	}
 	defer c.Cleanup()
 
-	err = c.ApplyConfiguration(res)
+	c.Conf = res
+
+	err = c.ApplyConfiguration()
 	if err != nil {
 		t.Errorf(err.Error())
 	}

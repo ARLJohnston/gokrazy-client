@@ -16,7 +16,7 @@ type Client struct {
 	stdin        io.Reader
 	stdout       io.Writer
 	stderr       io.Writer
-	conf         configuration
+	Conf         gokrazyConfiguration
 }
 
 func NewClient(instanceName string, stdin io.Reader, stdout, stderr io.Writer) (*Client, error) {
@@ -58,19 +58,19 @@ func (c *Client) Update() error {
 	return c.DoRequest([]string{"update"})
 }
 
-func (c *Client) ApplyConfiguration(conf configuration) error {
+func (c *Client) ApplyConfiguration() error {
 	err := os.Mkdir(filepath.Join(c.ParentDir, c.InstanceName), os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	f, err := os.Create(filepath.Join(c.ParentDir, c.InstanceName, conf.getFileName()))
+	f, err := os.Create(filepath.Join(c.ParentDir, c.InstanceName, "config.json"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	byt, err := json.MarshalIndent(conf, "", "\t")
+	byt, err := json.MarshalIndent(c.Conf, "", "\t")
 	if err != nil {
 		return err
 	}
@@ -88,29 +88,12 @@ type update struct {
 	HttpPassword string `json:"HTTPPassword"`
 }
 
-type configuration interface {
-	getFileName() string
-}
-
-type wifiConfiguration struct {
-	SSID string `json:"ssid"`
-	PSK  string `json:"psk"`
-}
-
-func (w wifiConfiguration) getFileName() string {
-	return "wifi.json"
-}
-
 type gokrazyConfiguration struct {
 	Hostname      string                            `json:"Hostname"`
 	Update        update                            `json:"Update"`
 	Packages      []string                          `json:"Packages"`
 	Config        map[string]map[string]interface{} `json:"PackageConfig"`
 	SerialConsole string                            `json:"SerialConsole"`
-}
-
-func (c gokrazyConfiguration) getFileName() string {
-	return "config.json"
 }
 
 func main() {
@@ -155,13 +138,13 @@ func main() {
 	}
 	defer c.Cleanup()
 
-	err = c.ApplyConfiguration(res)
+	c.Conf = res
+	c.Conf.Packages = append(c.Conf.Packages, "github.com/gokrazy/hello")
+
+	err = c.ApplyConfiguration()
 	if err != nil {
 		panic(err)
 	}
-
-	wifi := wifiConfiguration{SSID: "ssid", PSK: "psk"}
-	c.ApplyConfiguration(wifi)
 
 	c.Update()
 	if err != nil {
